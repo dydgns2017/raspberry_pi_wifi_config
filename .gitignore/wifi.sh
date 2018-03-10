@@ -29,14 +29,14 @@ rsn_pairwise=CCMP
 ssid=$NETWORK
 wpa_passphrase=$PASS
 "
-sudo sh -c " echo \"$yonghoon\" >> /etc/hostpad/hostpad.conf "
+sudo sh -c " echo \"$yonghoon\" >> /etc/hostapd/hostapd.conf "
 
 yonghoon="
 DAEMON_CONF=\"/etc/hostapd/hostapd.conf\"
 "
 sudo sh -c " echo \"$yonghoon\" >> /etc/default/hostapd "
 
-sed -i "s/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g" /etc/sysctl.conf
+sudo sed -i "s/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g" /etc/sysctl.conf
 
 sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 sudo sh -c "iptables-save > /etc/iptables.ipv4.nat"
