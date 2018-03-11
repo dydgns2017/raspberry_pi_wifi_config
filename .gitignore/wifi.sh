@@ -13,8 +13,7 @@ interface=wlan0
 sudo sh -c " echo \"$yonghoon\" >> /etc/dnsmasq.conf "
 read -p "Configuration your WI-FI name = " NETWORK
 read -p "Configuration your WI-FI password = " PASS
-yonghoon="
-interface=wlan0
+yonghoon="interface=wlan0
 bridge=br0
 hw_mode=g
 channel=7
@@ -27,14 +26,10 @@ wpa_key_mgmt=WPA-PSK
 wpa_pairwise=TKIP
 rsn_pairwise=CCMP
 ssid=$NETWORK
-wpa_passphrase=$PASS
-"
+wpa_passphrase=$PASS"
 sudo sh -c " echo \"$yonghoon\" >> /etc/hostapd/hostapd.conf "
 
-yonghoon="
-DAEMON_CONF=\"/etc/hostapd/hostapd.conf\"
-"
-sudo sh -c " echo \"$yonghoon\" >> /etc/default/hostapd "
+sudo sh -c " echo DAEMON_CONF=\\\"/etc/hostapd/hostapd.conf\\\" >> /etc/default/hostapd "
 
 sudo sed -i "s/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g" /etc/sysctl.conf
 
