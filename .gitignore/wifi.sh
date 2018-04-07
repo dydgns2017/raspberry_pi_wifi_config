@@ -1,47 +1,89 @@
 #!/bin/bash
+# copyright Yonghoong
+# Auto configuration AP and isc-dhcp-server
 
-# static ip configuration
-yonghoon="interface wlan0
-static ip_address=192.168.0.10/24"
-sudo sh -c " echo \"$yonghoon\" >> /etc/dhcpcd.conf "
-# dnsmasq original file backup and configuration
-sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.orig
-yonghoon="
-interface=wlan0
-  dhcp-range=192.168.0.11,192.168.0.30,255.255.255.0,24h
+
+## set up isc-dhcp-server
+
+sudo mv /etc/dhcp/dhcpd.conf /etc/dhcp/dhcpd.conf.orig
+
+Yonghoon="subnet 192.168.100.0 netmask 255.255.255.0 {
+   authoritative;
+   range 192.168.100.10 192.168.100.200;
+   default-lease-time 3600;
+   max-lease-time 3600;
+   option subnet-mask 255.255.255.0;
+   option broadcast-address 192.168.100.255;
+   option routers 192.168.100.1;
+   option domain-name-servers 8.8.8.8;
+}
 "
-sudo sh -c " echo \"$yonghoon\" >> /etc/dnsmasq.conf "
+
+sudo sh -c " echo \"$Yonghoon\" >> /etc/dhcp/dhcpd.conf"
+
+sudo mv /etc/default/isc-dhcp-server /etc/default/isc-dhcp-server.orig
+
+Yonghoon="DHCPDv4_CONF=/etc/dhcp/dhcpd.conf
+INTERFACES=\"wlan0\""
+
+sudo sh -c " echo \"$Yonghoon\" >> /etc/default/isc-dhcp-server "
+
+## AP configuration
+
 read -p "Configuration your WI-FI name = " NETWORK
 read -p "Configuration your WI-FI password = " PASS
-yonghoon="interface=wlan0
-bridge=br0
+
+Yonghoon="
+interface=wlan0
+#driver=rtl871xdrv
+ssid=$NETWORK
+country_code=US
 hw_mode=g
-channel=7
-wmm_enabled=0
+channel=6
 macaddr_acl=0
 auth_algs=1
 ignore_broadcast_ssid=0
 wpa=2
+wpa_passphrase=$PASS
 wpa_key_mgmt=WPA-PSK
-wpa_pairwise=TKIP
-rsn_pairwise=CCMP
-ssid=$NETWORK
-wpa_passphrase=$PASS"
-sudo sh -c " echo \"$yonghoon\" >> /etc/hostapd/hostapd.conf "
+wpa_pairwise=CCMP
+wpa_group_rekey=86400
+ieee80211n=1
+wme_enabled=1
+"
 
-sudo sh -c " echo DAEMON_CONF=\\\"/etc/hostapd/hostapd.conf\\\" >> /etc/default/hostapd "
+sudo sh -c " echo \"$Yonghoon\" >> /etc/hostapd/hostapd.conf "
 
-sudo sed -i "s/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g" /etc/sysctl.conf
+Yonghoon="
+DAEMON_CONF=\"/etc/hostapd/hostapd.conf\"
+"
+sudo sh -c " echo \"$Yonghoon\" >> /etc/default/hostapd"
+sudo sed -i 's/DAEMON_CONF=/DAEMON_CONF=\/etc\/hostapd\/hostapd.conf/g' /etc/init.d/hostapd
+
+## static ip address interface 'wlan0'
+
+sudo mv /etc/dhcpcd.conf /etc/dhcpcd.conf.orig
+
+Yonghoon="interface wlan0
+static ip_address=192.168.100.1
+static routers=192.168.100.1
+static domain_name_servers=8.8.8.8"
+
+sudo sh -c " echo \"$Yonghoon\" >> /etc/dhcpcd.conf"
+
+## Configure NAT
+
+Yonghoon="
+net.ipv4.ip_forward=1
+"
+sudo sh -c " echo \"$Yonghoon\" >> /etc/sysctl.conf "
+sudo sh -c " echo 1 > /proc/sys/net/ipv4/ip_forward "
 
 sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-sudo sh -c "iptables-save > /etc/iptables.ipv4.nat"
-sudo iptables-restore < /etc/iptables.ipv4.nat
+sudo iptables -A FORWARD -i eth0 -o wlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+sudo iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT
 
-sudo brctl addbr br0
-sudo brctl addif br0 eth0
-yonghoon="
-auto br0
-iface br0 inet manual
-bridge_ports eth0 wlan0
-"
-sudo sh -c " echo \"$yonghoon\" >> /etc/network/interfaces "
+sudo sh -c "iptables-save > /etc/iptables/rules.v4"
+
+sudo service isc-dhcp-server restart
+sudo service hostapd restart
